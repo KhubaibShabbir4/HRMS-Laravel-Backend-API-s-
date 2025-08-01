@@ -12,6 +12,7 @@ use App\Http\Resources\TaskResource;
 use App\Models\Task;
 use App\Services\ErrorLoggingService;
 use App\Services\Task\TaskService;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -25,45 +26,12 @@ class TaskController extends Controller
     }
     public function index(Request $request)
     {
-        $user = Auth::user();
-
-        $query = Task::with(['assignedBy', 'assignedTo']);
-
-        if ($user->hasRole('Admin')) {
-            // Admin sees all tasks
-        } elseif ($user->hasRole('HR') || $user->hasRole('Manager')) {
-            $query->where(function ($q) use ($user) {
-                $q->where('assigned_by', $user->id)
-                    ->orWhere('assigned_to', $user->id);
-            });
-        } else {
-            $query->where('assigned_to', $user->id);
-        }
-
-        $query = (new TaskFilter($request))->apply($query);
-
-        $tasks = $query->latest()->paginate(10);
-
-        return TaskResource::collection($tasks)->additional([
-            'meta' => [
-                'current_page' => $tasks->currentPage(),
-                'total_pages' => $tasks->lastPage(),
-            ]
-        ]);
+       return $this->taskService->List($request);
     }
 
     public function store(TaskRequest $request)
     {
-        $dto = new TaskDTO(
-            assigned_by: Auth::id(),
-            assigned_to: $request->assigned_to,
-            title: $request->title,
-            description: $request->description,
-            due_date: $request->due_date,
-            status: 'pending'
-        );
-
-        $task = $this->taskService->create($dto);
+        $task = $this->taskService->create($request->validated());
 
         return response()->json([
             'message' => 'Task created successfully.',
@@ -78,36 +46,16 @@ class TaskController extends Controller
 
     public function update(TaskRequest $request, Task $task)
     {
-        $user = Auth::user();
+        try {
+            $updated = $this->taskService->updateWithData($task, $request->validated());
 
-        if ($user->id === $task->assigned_by || $user->hasRole('Admin')) {
-            $dto = new TaskDTO(
-                assigned_by: $task->assigned_by,
-                assigned_to: $request->assigned_to,
-                title: $request->title,
-                description: $request->description,
-                due_date: $request->due_date,
-                status: $request->status
-            );
-        } elseif ($user->id === $task->assigned_to) {
-            $dto = new TaskDTO(
-                assigned_by: $task->assigned_by,
-                assigned_to: $task->assigned_to,
-                title: $task->title,
-                description: $task->description,
-                due_date: $task->due_date,
-                status: $request->status
-            );
-        } else {
+            return response()->json([
+                'message' => 'Task updated successfully.',
+                'data' => new TaskResource($updated)
+            ]);
+        } catch (AuthorizationException $e) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
-
-        $updated = $this->taskService->update($task, $dto);
-
-        return response()->json([
-            'message' => 'Task updated successfully.',
-            'data' => new TaskResource($updated)
-        ]);
     }
 
     public function destroy(Task $task)
