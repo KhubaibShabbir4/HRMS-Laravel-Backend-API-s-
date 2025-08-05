@@ -42,4 +42,26 @@ class EmployeeService
         $employee = Employee::findOrFail($id);
         $employee->delete();
     }
+
+    public function uploadFiles($request, Employee $employee)
+    {
+        if ($request->hasFile('resume')) {
+            $resumePath = $request->file('resume')->store('resumes', 'public');
+            $employee->resume_path = $resumePath;
+        }
+
+        if ($request->hasFile('contract')) {
+            $contractPath = $request->file('contract')->store('contracts', 'public');
+            $employee->contract_path = $contractPath;
+        }
+
+        if ($request->hasFile('document')) {
+            $documentPath = $request->file('document')->store('documents', 'public');
+            $employee->document_path = $documentPath;
+        }
+
+        $employee->save();
+
+        return $employee;
+    }
 }

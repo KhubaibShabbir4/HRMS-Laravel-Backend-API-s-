@@ -67,24 +67,8 @@ class EmployeeController extends Controller
     }
     public function uploadFiles(UploadEmployeeFilesRequest $request, Employee $employee)
     {
-        if ($request->hasFile('resume')) {
-            $resumePath = $request->file('resume')->store('resumes', 'public');
-            $employee->resume_path = $resumePath;
-        }
-
-        if ($request->hasFile('contract')) {
-            $contractPath = $request->file('contract')->store('contracts', 'public');
-            $employee->contract_path = $contractPath;
-        }
-
-        if ($request->hasFile('document')) {
-            $documentPath = $request->file('document')->store('documents', 'public');
-            $employee->document_path = $documentPath;
-        }
-
-        $employee->save();
-
-        return response()->json(['message' => 'Files uploaded successfully', 'employee' => $employee]);
+        $updatedEmployee = $this->employeeService->uploadFiles($request, $employee);
+        return response()->json(['message' => 'Files uploaded successfully', 'employee' => $updatedEmployee]);
     }
 
 

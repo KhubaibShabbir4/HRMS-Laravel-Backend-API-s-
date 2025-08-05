@@ -43,4 +43,40 @@ class PerformanceReviewService
         };
     }
 
+    public function getReviewsForUser($user)
+    {
+        if ($user->hasRole('Admin')) {
+            return \App\Models\PerformanceReview::with('user')->latest()->get();
+        } elseif ($user->hasRole('HR')) {
+            return \App\Models\PerformanceReview::with('user')
+                ->whereHas('user', fn ($q) => $q->role(['Manager', 'Employee']))
+                ->get();
+        } elseif ($user->hasRole('Manager')) {
+            return \App\Models\PerformanceReview::with('user')
+                ->whereHas('user', fn ($q) => $q->role('Employee'))
+                ->get();
+        } else {
+            return \App\Models\PerformanceReview::with('user')
+                ->where('user_id', $user->id)
+                ->get();
+        }
+    }
+
+    public function findWithUser($id)
+    {
+        return \App\Models\PerformanceReview::with('user')->find($id);
+    }
+
+    public function find($id)
+    {
+        return \App\Models\PerformanceReview::find($id);
+    }
+
+    public function sendReminder($review_id)
+    {
+        $review = \App\Models\PerformanceReview::with('user')->findOrFail($review_id);
+        $user = $review->user;
+        \Mail::to($user->email)->send(new \App\Mail\PerformanceReviewMail($review));
+        return $user->email;
+    }
 }
