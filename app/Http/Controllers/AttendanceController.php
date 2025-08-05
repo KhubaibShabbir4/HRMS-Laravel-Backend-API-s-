@@ -19,14 +19,7 @@ class AttendanceController extends Controller
     public function checkIn()
     {
         try {
-            $user = auth()->user();
-
-            $dto = new CheckInDTO([
-                'user_id' => $user->id,
-            ]);
-
-            $attendance = $this->attendanceService->checkIn($dto);
-
+            $attendance = $this->attendanceService->checkIn();
             return response()->json(['data' => $attendance]);
         } catch (\Throwable $e) {
             report($e);
@@ -37,14 +30,7 @@ class AttendanceController extends Controller
     public function checkOut()
     {
         try {
-            $user = auth()->user();
-
-            $dto = new CheckOutDTO([
-                'user_id' => $user->id,
-            ]);
-
-            $attendance = $this->attendanceService->checkOut($dto);
-
+            $attendance = $this->attendanceService->checkOut();
             return response()->json(['data' => $attendance]);
         } catch (\Throwable $e) {
             report($e);

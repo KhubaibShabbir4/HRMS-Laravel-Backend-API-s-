@@ -24,23 +24,7 @@ class PerformanceReviewController extends Controller
     public function index()
     {
         $user = Auth::user();
-
-        if ($user->hasRole('Admin')) {
-            $reviews = PerformanceReview::with('user')->latest()->get();
-        } elseif ($user->hasRole('HR')) {
-            $reviews = PerformanceReview::with('user')
-                ->whereHas('user', fn ($q) => $q->role(['Manager', 'Employee']))
-                ->get();
-        } elseif ($user->hasRole('Manager')) {
-            $reviews = PerformanceReview::with('user')
-                ->whereHas('user', fn ($q) => $q->role('Employee'))
-                ->get();
-        } else {
-            $reviews = PerformanceReview::with('user')
-                ->where('user_id', $user->id)
-                ->get();
-        }
-
+        $reviews = $this->reviewService->getReviewsForUser($user);
         return response()->json([
             'status' => true,
             'data' => $reviews,
@@ -75,37 +59,30 @@ class PerformanceReviewController extends Controller
 
     public function show($id)
     {
-        $review = PerformanceReview::with('user')->find($id);
-
+        $review = $this->reviewService->findWithUser($id);
         if (!$review) {
             return response()->json(['status' => false, 'message' => 'Review not found.'], 404);
         }
-
         return response()->json(['status' => true, 'data' => $review]);
     }
 
     public function update(Request $request, $id)
     {
-        $review = PerformanceReview::find($id);
-
+        $review = $this->reviewService->find($id);
         if (!$review) {
             return response()->json(['status' => false, 'message' => 'Review not found.'], 404);
         }
-
         $request->validate([
             'feedback'    => 'nullable|string',
             'review_date' => 'required|date',
         ]);
-
         $dto = new PerformanceReviewDTO(
             user_id: $review->user_id,
             rating: $this->reviewService->calculateRatingFromTasks($review->user_id),
             feedback: $request->feedback,
             review_date: $request->review_date,
         );
-
         $updated = $this->reviewService->update($review, $dto);
-
         return response()->json([
             'status' => true,
             'message' => 'Review updated successfully.',
@@ -115,15 +92,12 @@ class PerformanceReviewController extends Controller
 
     public function destroy($id)
     {
-        $review = PerformanceReview::find($id);
-
+        $review = $this->reviewService->find($id);
         if (!$review) {
             return response()->json(['status' => false, 'message' => 'Review not found.'], 404);
         }
-
         try {
             $this->reviewService->delete($review);
-
             return response()->json(['status' => true, 'message' => 'Review deleted successfully.']);
         } catch (\Throwable $e) {
             return response()->json([
@@ -139,15 +113,10 @@ class PerformanceReviewController extends Controller
         $request->validate([
             'review_id' => 'required|exists:performance_reviews,id',
         ]);
-
-        $review = PerformanceReview::with('user')->findOrFail($request->review_id);
-        $user   = $review->user;
-
-        Mail::to($user->email)->send(new PerformanceReviewMail($review));
-
+        $email = $this->reviewService->sendReminder($request->review_id);
         return response()->json([
             'status' => true,
-            'message' => 'Review reminder sent to ' . $user->email,
+            'message' => 'Review reminder sent to ' . $email,
         ]);
     }
 }

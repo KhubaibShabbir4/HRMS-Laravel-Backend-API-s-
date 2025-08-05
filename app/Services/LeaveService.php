@@ -26,5 +26,23 @@ class LeaveService
             'status' => 'pending'
         ]);
     }
+
+    public function approveLeave($id)
+    {
+        $leave = \App\Models\Leave::findOrFail($id);
+        $leave->status = 'approved';
+        $leave->save();
+        $user = $leave->user;
+        \Mail::to($user->email)->send(new \App\Mail\AcceptLeaveMail($user->name));
+        return $leave;
+    }
+
+    public function rejectLeave($id)
+    {
+        $leave = \App\Models\Leave::findOrFail($id);
+        $leave->status = 'rejected';
+        $leave->save();
+        return $leave;
+    }
 }
 

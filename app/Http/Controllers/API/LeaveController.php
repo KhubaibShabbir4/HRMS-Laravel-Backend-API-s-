@@ -31,25 +31,13 @@ class LeaveController extends Controller
     }
     public function approve($id)
     {
-        $leave = Leave::findOrFail($id);
-        $leave->status = 'approved';
-        $leave->save();
-
-
-        $user = $leave->user;
-
-        // Send welcome mail (you can change to LeaveApprovedMail)
-        Mail::to($user->email)->send(new AcceptLeaveMail($user->name));
-
+        $leave = $this->leaveService->approveLeave($id);
         return response()->json(['message' => 'Leave approved successfully.']);
     }
 
     public function reject($id)
     {
-        $leave = Leave::findOrFail($id);
-        $leave->status = 'rejected';
-        $leave->save();
-
+        $leave = $this->leaveService->rejectLeave($id);
         return response()->json(['message' => 'Leave rejected successfully.']);
     }
 
